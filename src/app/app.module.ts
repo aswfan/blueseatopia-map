@@ -2,17 +2,19 @@ import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 
 import { AppRoutingModule } from './app-routing.module';
-import { AppComponent } from './app.component';
+import { Index } from './index';
+import { EsriMapComponent } from './esri-map/esri-map.component';
 
 @NgModule({
   declarations: [
-    AppComponent
+    Index,
+    EsriMapComponent
   ],
   imports: [
     BrowserModule,
     AppRoutingModule
   ],
-  providers: [],
-  bootstrap: [AppComponent]
+  providers: [], 
+  bootstrap: [Index]
 })
 export class AppModule { }
