@@ -78,14 +78,15 @@ export class EsriMapComponent implements OnInit {
     };
 
     try {
-      const [EsriMap, EsriSceneView, EsriMapView, EsriFeatureLayer, EsriWatchUtils, EsriGraphicsLayer] = await loadModules([
-        'esri/Map',
-        'esri/views/SceneView',
-        'esri/views/MapView',
-        'esri/layers/FeatureLayer',
-        'esri/core/watchUtils',
-        "esri/layers/GraphicsLayer",
-      ]);
+      const [EsriMap, EsriSceneView, EsriMapView, EsriFeatureLayer, EsriWatchUtils, EsriGraphicsLayer] = 
+        await loadModules([
+          'esri/Map',
+          'esri/views/SceneView',
+          'esri/views/MapView',
+          'esri/layers/FeatureLayer',
+          'esri/core/watchUtils',
+          "esri/layers/GraphicsLayer"
+        ]);
 
       const defaultSymbol = {
         type: "simple-fill",
@@ -95,7 +96,7 @@ export class EsriMapComponent implements OnInit {
           color: [239, 239, 239, 1],
           width: 0.1
         }
-      }
+      };
 
       const displaySymbol = {
         type: "simple-fill",
@@ -105,7 +106,7 @@ export class EsriMapComponent implements OnInit {
           color: [255, 255, 255, 1],
           width: 0.1
         }
-      }
+      };
 
       const htsymbol = {
         type: "simple-fill",
@@ -135,7 +136,7 @@ export class EsriMapComponent implements OnInit {
             haloColor: "white"
           }
         }],
-        labelsVisible: true
+        popupEnabled: false
       });
 
       const displayLayer = new EsriGraphicsLayer();
@@ -189,16 +190,14 @@ export class EsriMapComponent implements OnInit {
       });
 
       //highlight layer while mouse hovers
-      let highlight, oldGraphic;
+      let highlight;
       mapView.on("pointer-move", event => {
         //highlight handler
         const handler = response => {
-          if (response.results.length) {
-            var graphic = response.results.filter(result => {
-              return result.graphic.layer === displayLayer;
-            })[0].graphic;
+          if (response.results.length && mapView.zoom < 6) {
+            const graphic = response.results.filter(result => result.graphic.layer === displayLayer)[0].graphic;
 
-            if (highlight && oldGraphic != graphic) {
+            if (highlight && highlight != graphic) {
               highlight.symbol = displaySymbol;
             }
             highlight = graphic;
@@ -210,6 +209,41 @@ export class EsriMapComponent implements OnInit {
           }
         };
         mapView.hitTest(event).then(handler);
+      });
+
+      //click event
+      let centerGraphic;
+      mapView.on("click", event => {
+        mapView.hitTest(event).then(response => {
+          if (response.results.length) {
+            const graphic = response.results.filter(result => result.graphic.layer === displayLayer)[0].graphic;
+            if (centerGraphic && centerGraphic !== graphic) {
+              centerGraphic.set("symbol", displaySymbol);
+            }
+            centerGraphic = graphic;
+            mapView.goTo(graphic).then(() => graphic.set("symbol", defaultSymbol));
+          }
+        });
+      });
+
+      mapView.watch("center", center => console.log("lat: " + center.latitude + ", lon: " + center.longitude));
+
+      //drag event
+      mapView.on("drag", event => {
+        if (!centerGraphic) {
+          return;
+        }
+        //https://developers.arcgis.com/javascript/latest/api-reference/esri-views-MapView.html#event:drag
+        mapView.hitTest(mapView.center).then(response => {
+          if (response.results.length) {
+            const graphic = response.results.filter(result => result.graphic.layer === displayLayer)[0].graphic;
+            if (centerGraphic === graphic) {
+              return;
+            }
+          }
+          centerGraphic.set("symbol", displaySymbol);
+          centerGraphic = null;
+        });
       });
 
       //switch between MapView and SceneView according to zoom value
@@ -245,3 +279,4 @@ export class EsriMapComponent implements OnInit {
     this.initializeMap();
   }
 }
+
