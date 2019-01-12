@@ -76,7 +76,7 @@ export class GenericMap {
      * @param name event anem
      * @param eventHandler event handler
      */
-    on(name: string, eventHandler: (view: esri.MapView | esri.SceneView, config: any, ...displayLayers: esri.GraphicsLayer[]) => any) {
+    on(name: string, eventHandler: (view, config: any, ...displayLayers: esri.GraphicsLayer[]) => any) {
         this._mapView.on(name, eventHandler(this._mapView, this.eventConfig, this.featureDisplayLayer, this.graphicDisplayLayer));
     }
 

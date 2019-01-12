@@ -98,7 +98,17 @@ export class EsriMapComponent implements OnInit {
       };
 
       const map2D = new GenericMap(new EsriMap({basemap: this._basemap}), new EsriGraphicsLayer(), new EsriGraphicsLayer(), this.STATES);
-      const map3D = new GenericMap(new EsriMap({basemap: this._basemap}), new EsriGraphicsLayer(), new EsriGraphicsLayer(), this.STATES);
+      const map3D = new GenericMap(new EsriMap({basemap: this._basemap}), new EsriGraphicsLayer({
+        hasZ: true,
+        elevationInfo: {
+          mode: "absolute-height",
+          offset: 0,
+          featureExpressionInfo:{
+            expression: "40000"
+          },
+          unit: "meters"
+        }
+      }), new EsriGraphicsLayer(), this.STATES);
 
       const conditionalLoading = (usStateLayer, displayLayer): (layerView: esri.LayerView) => void => {
         return ignore => {
@@ -140,7 +150,7 @@ export class EsriMapComponent implements OnInit {
       const sceneView = map3D.initMap(new EsriSceneView({
         container: this.mapViewEl.nativeElement,
         center: this._center,
-        zoom: 3
+        zoom: this._zoom
       }), this.MAP_SWITCH_ZOOM);
       
       mapView.subscribeZoomEvent(sceneView);
@@ -153,26 +163,29 @@ export class EsriMapComponent implements OnInit {
           const handler = response => {
             // console.log("len: " + response.results.length + ", zoom: " + view.zoom);
             if (response.results.length) {
-              const graphic = response.results.filter(result => result.graphic && displayLayers.includes(result.graphic.layer))[0].graphic;
-              if (config && config.highlight && config.highlight != graphic && config.centerGraphic && config.centerGraphic != graphic) {
-                config.highlight.symbol = config.highlight.geometry.type === "point" ? Symbol.pointSymbol : Symbol.displaySymbol;
+              let graphic = response.results.filter(result => result.graphic && displayLayers.includes(result.graphic.layer))
+              if (graphic && graphic.length > 0) {
+                graphic = graphic[0].graphic;
+                if (config && config.highlight && config.highlight != graphic && config.centerGraphic && config.centerGraphic != graphic) {
+                  config.highlight.symbol = config.highlight.geometry.type === "point" ? Symbol.pointSymbol : Symbol.displaySymbol;
+                }
+                // console.log(graphic.attributes);
+                config.highlight = graphic;
+                graphic.symbol = graphic.geometry.type === "point" ? Symbol.htPointSymbol : Symbol.htSymbol;
+                return;
               }
-              // console.log(graphic.attributes);
-              config.highlight = graphic;
-              graphic.symbol = graphic.geometry.type === "point" ? Symbol.htPointSymbol : Symbol.htSymbol;
-            } else {
-              if (!(config && config.highlight && config.centerGraphic && config.highlight === config.centerGraphic)) {
-                config.highlight.symbol = config.highlight.geometry.type === "point" ? Symbol.pointSymbol : Symbol.displaySymbol;
-              }
-              config.highlight = null;
             }
+            if (!(config && config.highlight && config.centerGraphic && config.highlight === config.centerGraphic)) {
+              config.highlight.symbol = config.highlight.geometry.type === "point" ? Symbol.pointSymbol : Symbol.displaySymbol;
+            }
+            config.highlight = null;
           };
           view.hitTest(event).then(handler);
         };
       };
 
       map2D.on("pointer-move", pointerMoveHandler);
-      // map3D.on("pointer-move", pointerMoveHandler);
+      map3D.on("pointer-move", pointerMoveHandler);
 
       //click event
       const clickEventHandler = (view, config, ...displayLayers: esri.GraphicsLayer[]): esri.MapViewClickEventHandler => {
@@ -186,7 +199,6 @@ export class EsriMapComponent implements OnInit {
               } else {
                 view.goTo(graphic);
               }
-              
             } else {
               if (config && config.centerGraphic) {
                 config.centerGraphic.symbol = config.centerGraphic.geometry.type === "point" ? Symbol.pointSymbol : Symbol.displaySymbol;
@@ -197,7 +209,7 @@ export class EsriMapComponent implements OnInit {
         };
       };
       map2D.on("click", clickEventHandler);
-      // map3D.on("click", clickEventHandler);
+      map3D.on("click", clickEventHandler);
     } catch (error) {
       console.log(error);
     }
