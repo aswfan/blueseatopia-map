@@ -16,6 +16,7 @@ import { loadModules } from 'esri-loader';
 import esri = __esri;
 
 import {State} from './region/us-state';
+import {GenericMap} from './map';
 
 @Component({
   selector: 'app-esri-map',
@@ -70,21 +71,13 @@ export class EsriMapComponent implements OnInit {
   constructor() { }
 
   async initializeMap() {
-    var appConfig = {
-      mapView: null,
-      sceneView: null,
-      activeView: null,
-      container: this.mapViewEl.nativeElement
-    };
-
     try {
-      const [EsriMap, EsriSceneView, EsriMapView, EsriFeatureLayer, EsriWatchUtils, EsriGraphicsLayer] = 
+      const [EsriMap, EsriSceneView, EsriMapView, EsriFeatureLayer, EsriGraphicsLayer] = 
         await loadModules([
           'esri/Map',
           'esri/views/SceneView',
           'esri/views/MapView',
           'esri/layers/FeatureLayer',
-          'esri/core/watchUtils',
           "esri/layers/GraphicsLayer"
         ]);
 
@@ -123,58 +116,35 @@ export class EsriMapComponent implements OnInit {
         defaultSymbol: defaultSymbol
       };
 
-      const usStateLayer = new EsriFeatureLayer({
+      const usStateLayerConfig2D = {
         portalItem: {id: "99fd67933e754a1181cc755146be21ca"},
-        outFields: ["*"],
         renderer: renderer,
         labelingInfo: [{
           labelExpressionInfo: { expression: "$feature.STATE_ABBR" },
           symbol: {
-            type: "text",  // autocasts as new TextSymbol()
+            type: "text",
             color: [239, 239, 239, 1],
             haloSize: 0.1,
-            haloColor: "white"
+            haloColor: [239, 239, 239, 1]
           }
         }],
         popupEnabled: false
-      });
+      };
 
-      const displayLayer = new EsriGraphicsLayer();
-
-      const basemap2D = new EsriMap({
-        basemap: "gray",
-        layers: [displayLayer, usStateLayer]
-      });
-
-      const basemap3D = new EsriMap({
-        basemap: "gray",
-        // layers: [displayLayer, usStateLayer]
-      });
-
-      const mapView: esri.MapView = new EsriMapView({
-        container: appConfig.container,
-        center: this._center,
-        zoom: this._zoom,
-        map: basemap2D,
+      const usStateLayerConfig3D = {
+        portalItem: {id: "99fd67933e754a1181cc755146be21ca"},
+        visible: false,
         highlightOptions: {
-          color: [255, 255, 255, 1],
-          haloOpacity: 5,
-          fillOpacity: 0
+          color: [255, 241, 58],
+          fillOpacity: 0.4
         }
-      });
-      appConfig.mapView = mapView;
-      appConfig.activeView = mapView;
-      
-      const sceneView: esri.SceneView = new EsriSceneView({
-        container: null,
-        center: this._center,
-        zoom: this.MAP_SWITCH_ZOOM - 1,
-        map: basemap3D
-      });
-      appConfig.sceneView = sceneView;
+      };
 
-      //display the specified US States only
-      mapView.whenLayerView(usStateLayer).then(ignore => {
+      const map2D = new GenericMap(new EsriMap({basemap: this._basemap}), new EsriGraphicsLayer(), this.STATES);
+      const map3D = new GenericMap(new EsriMap({basemap: this._basemap}), new EsriGraphicsLayer(), this.STATES);
+
+      const conditionalLoading = (usStateLayer, displayLayer): (layerView: esri.LayerView) => void => {
+        return ignore => {
           const query = usStateLayer.createQuery();
           const stateNames = this.STATES.map(state => State[state]);
           query.where = "STATE_NAME = '" + stateNames.join("' OR STATE_NAME = '") + "'";
@@ -185,91 +155,96 @@ export class EsriMapComponent implements OnInit {
               graphic.symbol = displaySymbol;
               return graphic;
             });
+            // console.log(features);
             displayLayer.addMany(features);
           });
-      });
+        };
+      };
+
+      map2D.addFeatureLayer(new EsriFeatureLayer(usStateLayerConfig2D), conditionalLoading);
+      map3D.addFeatureLayer(new EsriFeatureLayer(usStateLayerConfig3D), conditionalLoading);
+
+      const mapView = map2D.initMap(new EsriMapView({
+        container: null,
+        center: this._center,
+        zoom: this._zoom
+      }), this.MAP_SWITCH_ZOOM);
+      const sceneView = map3D.initMap(new EsriSceneView({
+        container: this.mapViewEl.nativeElement,
+        center: this._center,
+        zoom: 3
+      }), this.MAP_SWITCH_ZOOM);
+      
+      mapView.subscribeZoomEvent(sceneView);
+      sceneView.subscribeZoomEvent(mapView);
 
       //highlight layer while mouse hovers
-      let highlight;
-      mapView.on("pointer-move", event => {
-        //highlight handler
-        const handler = response => {
-          if (response.results.length && mapView.zoom < 6) {
-            const graphic = response.results.filter(result => result.graphic.layer === displayLayer)[0].graphic;
-
-            if (highlight && highlight != graphic) {
-              highlight.symbol = displaySymbol;
+      const pointerMoveHandler = (displayLayer, config, view): esri.MapViewPointerMoveEventHandler => {
+        return event => {
+          //highlight handler
+          const handler = response => {
+            // console.log("len: " + response.results.length + ", zoom: " + view.zoom);
+            if (response.results.length && view.zoom < 6) {
+              const graphic = response.results.filter(result => result.graphic && result.graphic.layer === displayLayer)[0].graphic;
+              console.log(graphic);
+              if (config && config.highlight && config.highlight != graphic) {
+                config.highlight.symbol = displaySymbol;
+              }
+              config.highlight = graphic;
+              graphic.symbol = htsymbol;
+              console.log(graphic.attributes);
+            } else {
+              config.highlight.symbol = displaySymbol;
+              config.highlight = null;
             }
-            highlight = graphic;
-            graphic.symbol = htsymbol;
-            // console.log(graphic.attributes);
-          } else {
-            highlight.symbol = displaySymbol;
-            highlight = null;
-          }
+          };
+          view.hitTest(event).then(handler);
         };
-        mapView.hitTest(event).then(handler);
-      });
+      };
+
+      map2D.on("pointer-move", pointerMoveHandler);
+      // map3D.on("pointer-move", pointerMoveHandler);
 
       //click event
-      let centerGraphic;
-      mapView.on("click", event => {
-        mapView.hitTest(event).then(response => {
-          if (response.results.length) {
-            const graphic = response.results.filter(result => result.graphic.layer === displayLayer)[0].graphic;
-            if (centerGraphic && centerGraphic !== graphic) {
-              centerGraphic.set("symbol", displaySymbol);
+      const clickEventHandler = (displayLayer, config, view): esri.MapViewClickEventHandler => {
+        return event => {
+          view.hitTest(event).then(response => {
+            if (response.results.length) {
+              const graphic = response.results.filter(result => result.graphic.layer === displayLayer)[0].graphic;
+              if (config && config.centerGraphic && config.centerGraphic !== graphic) {
+                config.centerGraphic.set("symbol", displaySymbol);
+              }
+              config.centerGraphic = graphic;
+              view.goTo(graphic).then(() => graphic.set("symbol", defaultSymbol));
             }
-            centerGraphic = graphic;
-            mapView.goTo(graphic).then(() => graphic.set("symbol", defaultSymbol));
+          });
+        };
+      };
+      map2D.on("click", clickEventHandler);
+      // map3D.on("click", clickEventHandler);
+
+      // drag event
+      //TODO: clean up config.centerGraphic
+      const dragEventHandler = (displayLayer, config, view): esri.MapViewDragEventHandler => {
+        return event => {
+          if (!config.centerGraphic) {
+            return;
           }
-        });
-      });
-
-      mapView.watch("center", center => console.log("lat: " + center.latitude + ", lon: " + center.longitude));
-
-      //drag event
-      mapView.on("drag", event => {
-        if (!centerGraphic) {
-          return;
-        }
-        //https://developers.arcgis.com/javascript/latest/api-reference/esri-views-MapView.html#event:drag
-        mapView.hitTest(mapView.center).then(response => {
-          if (response.results.length) {
-            const graphic = response.results.filter(result => result.graphic.layer === displayLayer)[0].graphic;
-            if (centerGraphic === graphic) {
-              return;
+          //TODO: https://developers.arcgis.com/javascript/latest/api-reference/esri-views-MapView.html#event:drag
+          view.hitTest(view.center).then(response => {
+            if (response.results.length) {
+              const graphic = response.results.filter(result => result.graphic.layer === displayLayer)[0].graphic;
+              if (config.centerGraphic === graphic) {
+                return;
+              }
             }
-          }
-          centerGraphic.set("symbol", displaySymbol);
-          centerGraphic = null;
-        });
-      });
-
-      //switch between MapView and SceneView according to zoom value
-      let switchHandler;
-      const switchView = () => {
-        const activeView = appConfig.activeView;
-        const is3D = activeView.type === "3d";
-        const activeViewpoint = activeView.viewpoint.clone();
-
-        console.log("is3D: " + is3D + ", zoom: " + activeView.zoom);
-
-        if (is3D && activeView.zoom >= this.MAP_SWITCH_ZOOM) {
-          activeView.container = null;
-          appConfig.mapView.viewpoint = activeViewpoint;
-          appConfig.mapView.container = appConfig.container;
-          appConfig.activeView = appConfig.mapView;
-        } else if (!is3D && activeView.zoom < this.MAP_SWITCH_ZOOM) {
-          activeView.container = null;
-          appConfig.sceneView.viewpoint = activeViewpoint;
-          appConfig.sceneView.container = appConfig.container;
-          appConfig.activeView = appConfig.sceneView;
-        }
-      }
-
-      EsriWatchUtils.watch(mapView, "zoom", switchView);
-      EsriWatchUtils.watch(sceneView, "zoom", switchView);
+            config.centerGraphic.set("symbol", displaySymbol);
+            config.centerGraphic = null;
+          });
+        };
+      };
+      map2D.on("drag", dragEventHandler);
+      map3D.on("drag", dragEventHandler);
     } catch (error) {
       console.log(error);
     }
