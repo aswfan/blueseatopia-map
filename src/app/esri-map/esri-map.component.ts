@@ -1,22 +1,10 @@
-/*
-  Copyright 2018 Esri
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-*/
-
 import { Component, OnInit, ViewChild, ElementRef, Input, Output, EventEmitter } from '@angular/core';
 import { loadModules } from 'esri-loader';
 import esri = __esri;
 
 import {State} from './region/us-state';
 import {GenericMap} from './map';
+import {Symbol} from './utilities/symbols'; 
 
 @Component({
   selector: 'app-esri-map',
@@ -72,53 +60,22 @@ export class EsriMapComponent implements OnInit {
 
   async initializeMap() {
     try {
-      const [EsriMap, EsriSceneView, EsriMapView, EsriFeatureLayer, EsriGraphicsLayer] = 
+      const [EsriMap, EsriSceneView, EsriMapView, EsriFeatureLayer, EsriGraphicsLayer, EsriGraphic] = 
         await loadModules([
           'esri/Map',
           'esri/views/SceneView',
           'esri/views/MapView',
           'esri/layers/FeatureLayer',
-          "esri/layers/GraphicsLayer"
+          "esri/layers/GraphicsLayer",
+          "esri/Graphic"
         ]);
-
-      const defaultSymbol = {
-        type: "simple-fill",
-        style: "solid",
-        color: [95, 155, 200, 0],
-        outline: {
-          color: [239, 239, 239, 1],
-          width: 0.1
-        }
-      };
-
-      const displaySymbol = {
-        type: "simple-fill",
-        style: "solid",
-        color: [95, 155, 200, 0.5],
-        outline: {
-          color: [255, 255, 255, 1],
-          width: 0.1
-        }
-      };
-
-      const htsymbol = {
-        type: "simple-fill",
-        style: "solid",
-        color: [95, 155, 200, 1],
-        outline: {
-          color: [255, 255, 255, 1],
-          width: 3
-        }
-      };
-
-      const renderer = {
-        type: "unique-value",
-        defaultSymbol: defaultSymbol
-      };
 
       const usStateLayerConfig2D = {
         portalItem: {id: "99fd67933e754a1181cc755146be21ca"},
-        renderer: renderer,
+        renderer: {
+          type: "unique-value",
+          defaultSymbol: Symbol.defaultSymbol
+        },
         labelingInfo: [{
           labelExpressionInfo: { expression: "$feature.STATE_ABBR" },
           symbol: {
@@ -140,8 +97,8 @@ export class EsriMapComponent implements OnInit {
         }
       };
 
-      const map2D = new GenericMap(new EsriMap({basemap: this._basemap}), new EsriGraphicsLayer(), this.STATES);
-      const map3D = new GenericMap(new EsriMap({basemap: this._basemap}), new EsriGraphicsLayer(), this.STATES);
+      const map2D = new GenericMap(new EsriMap({basemap: this._basemap}), new EsriGraphicsLayer(), new EsriGraphicsLayer(), this.STATES);
+      const map3D = new GenericMap(new EsriMap({basemap: this._basemap}), new EsriGraphicsLayer(), new EsriGraphicsLayer(), this.STATES);
 
       const conditionalLoading = (usStateLayer, displayLayer): (layerView: esri.LayerView) => void => {
         return ignore => {
@@ -152,7 +109,7 @@ export class EsriMapComponent implements OnInit {
           usStateLayer.queryFeatures(query)
           .then(result => {
             const features = result.features.map(graphic => {
-              graphic.symbol = displaySymbol;
+              graphic.symbol = Symbol.displaySymbol;
               return graphic;
             });
             // console.log(features);
@@ -161,8 +118,19 @@ export class EsriMapComponent implements OnInit {
         };
       };
 
+      //add layer
       map2D.addFeatureLayer(new EsriFeatureLayer(usStateLayerConfig2D), conditionalLoading);
       map3D.addFeatureLayer(new EsriFeatureLayer(usStateLayerConfig3D), conditionalLoading);
+
+      //add point
+      map2D.addGraphic(new EsriGraphic({
+        geometry: {
+          type: "point",
+          longitude: -122.30546046972074,
+          latitude: 47.654676728405775
+        },
+        symbol: Symbol.pointSymbol
+      }));
 
       const mapView = map2D.initMap(new EsriMapView({
         container: null,
@@ -179,22 +147,23 @@ export class EsriMapComponent implements OnInit {
       sceneView.subscribeZoomEvent(mapView);
 
       //highlight layer while mouse hovers
-      const pointerMoveHandler = (displayLayer, config, view): esri.MapViewPointerMoveEventHandler => {
+      const pointerMoveHandler = (view, config, ...displayLayers: esri.GraphicsLayer[]): esri.MapViewPointerMoveEventHandler => {
         return event => {
           //highlight handler
           const handler = response => {
             // console.log("len: " + response.results.length + ", zoom: " + view.zoom);
-            if (response.results.length && view.zoom < 6) {
-              const graphic = response.results.filter(result => result.graphic && result.graphic.layer === displayLayer)[0].graphic;
-              console.log(graphic);
-              if (config && config.highlight && config.highlight != graphic) {
-                config.highlight.symbol = displaySymbol;
+            if (response.results.length) {
+              const graphic = response.results.filter(result => result.graphic && displayLayers.includes(result.graphic.layer))[0].graphic;
+              if (config && config.highlight && config.highlight != graphic && config.centerGraphic && config.centerGraphic != graphic) {
+                config.highlight.symbol = config.highlight.geometry.type === "point" ? Symbol.pointSymbol : Symbol.displaySymbol;
               }
+              // console.log(graphic.attributes);
               config.highlight = graphic;
-              graphic.symbol = htsymbol;
-              console.log(graphic.attributes);
+              graphic.symbol = graphic.geometry.type === "point" ? Symbol.htPointSymbol : Symbol.htSymbol;
             } else {
-              config.highlight.symbol = displaySymbol;
+              if (!(config && config.highlight && config.centerGraphic && config.highlight === config.centerGraphic)) {
+                config.highlight.symbol = config.highlight.geometry.type === "point" ? Symbol.pointSymbol : Symbol.displaySymbol;
+              }
               config.highlight = null;
             }
           };
@@ -206,45 +175,29 @@ export class EsriMapComponent implements OnInit {
       // map3D.on("pointer-move", pointerMoveHandler);
 
       //click event
-      const clickEventHandler = (displayLayer, config, view): esri.MapViewClickEventHandler => {
+      const clickEventHandler = (view, config, ...displayLayers: esri.GraphicsLayer[]): esri.MapViewClickEventHandler => {
         return event => {
           view.hitTest(event).then(response => {
             if (response.results.length) {
-              const graphic = response.results.filter(result => result.graphic.layer === displayLayer)[0].graphic;
-              if (config && config.centerGraphic && config.centerGraphic !== graphic) {
-                config.centerGraphic.set("symbol", displaySymbol);
-              }
+              const graphic = response.results.filter(result => displayLayers.includes(result.graphic.layer))[0].graphic;
               config.centerGraphic = graphic;
-              view.goTo(graphic).then(() => graphic.set("symbol", defaultSymbol));
+              if (graphic.geometry.type === "point") {
+                view.goTo({target: graphic, zoom: 12}).then(() => graphic.symbol = Symbol.htPointSymbol);
+              } else {
+                view.goTo(graphic);
+              }
+              
+            } else {
+              if (config && config.centerGraphic) {
+                config.centerGraphic.symbol = config.centerGraphic.geometry.type === "point" ? Symbol.pointSymbol : Symbol.displaySymbol;
+              }
+              config.centerGraphic = null;
             }
           });
         };
       };
       map2D.on("click", clickEventHandler);
       // map3D.on("click", clickEventHandler);
-
-      // drag event
-      //TODO: clean up config.centerGraphic
-      const dragEventHandler = (displayLayer, config, view): esri.MapViewDragEventHandler => {
-        return event => {
-          if (!config.centerGraphic) {
-            return;
-          }
-          //TODO: https://developers.arcgis.com/javascript/latest/api-reference/esri-views-MapView.html#event:drag
-          view.hitTest(view.center).then(response => {
-            if (response.results.length) {
-              const graphic = response.results.filter(result => result.graphic.layer === displayLayer)[0].graphic;
-              if (config.centerGraphic === graphic) {
-                return;
-              }
-            }
-            config.centerGraphic.set("symbol", displaySymbol);
-            config.centerGraphic = null;
-          });
-        };
-      };
-      map2D.on("drag", dragEventHandler);
-      map3D.on("drag", dragEventHandler);
     } catch (error) {
       console.log(error);
     }
