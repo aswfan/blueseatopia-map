@@ -27,7 +27,7 @@ export class EsriMapComponent implements OnInit {
 
   private readonly MAP_SWITCH_ZOOM = 3;
   private readonly STATES = [
-    State.Washington, State.California, State.Alaska, State.Florida, State["New York"], State.Oregon];
+    State.Washington];//, State.California, State.Alaska, State.Florida, State["New York"], State.Oregon];
 
   @Input()
   set zoom(zoom: number) {
@@ -139,7 +139,7 @@ export class EsriMapComponent implements OnInit {
           longitude: -122.30546046972074,
           latitude: 47.654676728405775
         },
-        symbol: Symbol.pointSymbol
+        symbol: Symbol.pictureSymbol//Symbol.pointSymbol
       }));
 
       const mapView = map2D.initMap(new EsriMapView({
@@ -161,22 +161,21 @@ export class EsriMapComponent implements OnInit {
         return event => {
           //highlight handler
           const handler = response => {
-            // console.log("len: " + response.results.length + ", zoom: " + view.zoom);
             if (response.results.length) {
               let graphic = response.results.filter(result => result.graphic && displayLayers.includes(result.graphic.layer))
               if (graphic && graphic.length > 0) {
                 graphic = graphic[0].graphic;
-                if (config && config.highlight && config.highlight != graphic && config.centerGraphic && config.centerGraphic != graphic) {
-                  config.highlight.symbol = config.highlight.geometry.type === "point" ? Symbol.pointSymbol : Symbol.displaySymbol;
+                if (config && config.highlight && config.highlight != graphic && config.centerGraphic != graphic) {
+                  config.highlight.symbol = config.highlight.geometry.type === "point" ? Symbol.pictureSymbol : Symbol.displaySymbol;
                 }
                 // console.log(graphic.attributes);
                 config.highlight = graphic;
-                graphic.symbol = graphic.geometry.type === "point" ? Symbol.htPointSymbol : Symbol.htSymbol;
+                graphic.symbol = graphic.geometry.type === "point" ? Symbol.htPictureSymbol : Symbol.htSymbol;
                 return;
               }
             }
             if (!(config && config.highlight && config.centerGraphic && config.highlight === config.centerGraphic)) {
-              config.highlight.symbol = config.highlight.geometry.type === "point" ? Symbol.pointSymbol : Symbol.displaySymbol;
+              config.highlight.symbol = config.highlight.geometry.type === "point" ? Symbol.pictureSymbol : Symbol.displaySymbol;
             }
             config.highlight = null;
           };
@@ -195,13 +194,13 @@ export class EsriMapComponent implements OnInit {
               const graphic = response.results.filter(result => displayLayers.includes(result.graphic.layer))[0].graphic;
               config.centerGraphic = graphic;
               if (graphic.geometry.type === "point") {
-                view.goTo({target: graphic, zoom: 12}).then(() => graphic.symbol = Symbol.htPointSymbol);
+                view.goTo({target: graphic, zoom: 12}).then(() => graphic.symbol = Symbol.htPictureSymbol);
               } else {
                 view.goTo(graphic);
               }
             } else {
               if (config && config.centerGraphic) {
-                config.centerGraphic.symbol = config.centerGraphic.geometry.type === "point" ? Symbol.pointSymbol : Symbol.displaySymbol;
+                config.centerGraphic.symbol = config.centerGraphic.geometry.type === "point" ? Symbol.pictureSymbol : Symbol.displaySymbol;
               }
               config.centerGraphic = null;
             }
