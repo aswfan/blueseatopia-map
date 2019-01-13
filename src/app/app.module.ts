@@ -2,8 +2,10 @@ import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 
 import { AppRoutingModule } from './app-routing.module';
-import { Index } from './index';
+import { Index } from './index/index';
 import { EsriMapComponent } from './esri-map/esri-map.component';
+
+import { CoreModule } from './core/core.module';
 
 @NgModule({
   declarations: [
@@ -12,7 +14,8 @@ import { EsriMapComponent } from './esri-map/esri-map.component';
   ],
   imports: [
     BrowserModule,
-    AppRoutingModule
+    AppRoutingModule,
+    CoreModule
   ],
   providers: [], 
   bootstrap: [Index]

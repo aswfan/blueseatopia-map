@@ -1,3 +1,21 @@
-<app-esri-map></app-esri-map>
+<ct-navbar></ct-navbar>
 
+<div class="container">
+    <div class="jumbotron my-2">
+        <h2 class="display-4">ArcGIS Map</h2>
+        <p class="lead">
+            This is a simple demo, which enables to view photos on a map. Regions with photos are highlighted in blue.
+        </p>
+        <p class="lead">
+            <a class="btn btn-primary btn-lg" href="https://github.com/aswfan/blueseatopia-map" role="button">Learn more</a>
+        </p>
+    </div>
+    <div class="panel border-light">
+        <app-esri-map></app-esri-map>
+        <!-- <div class="panel-heading">Status</div>
+        <div class="panel-body">
+            {{title}}
+        </div> -->
+    </div>
+</div>
 <router-outlet></router-outlet>

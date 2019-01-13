@@ -1,6 +1,6 @@
 import { TestBed, async } from '@angular/core/testing';
-import { Index } from './index';
-import { EsriMapComponent } from './esri-map/esri-map.component';
+import { Index } from '../index';
+import { EsriMapComponent } from '../esri-map/esri-map.component';
 
 describe('AppComponent', () => {
   beforeEach(async(() => {
