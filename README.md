@@ -1,27 +1,32 @@
-# Site
+# Blueseatopia
+ 
+This website is developed by [Angular CLI](https://github.com/angular/angular-cli) to view photos on a map. this project is written in Typescript and its main purpose is to show how to use [ArcGIS API for JavaScript](https://developers.arcgis.com/javascript/)(version *4.x*) to visualize data(including photo) on a map. 
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 7.1.4.
+![Overview 3D](https://github.com/aswfan/blueseatopia-map/raw/master/image/Overview3D.png)
 
-## Development server
+![View Photo on Map](https://github.com/aswfan/blueseatopia-map/raw/master/image/PhotoInDisplay.png)
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+### Backstory
 
-## Code scaffolding
+This idea comes from one of IOS's features, which right now is only avaible on Apple's devices(e.g. iPhone, and iPad) but not in web(e.g. iCloud). So, currently the only way in the web for this kind of use is to create a custom map through Google MyMaps, which is said by some people to be "the best". Well, it's "partially" correct. It's fine for personal use with insensitive information(e.g. photos and location), which doesn't require large amount of resource as well. But for some oragnizations(non-profit or for-profit), especially those who have competing business with Google, the requiremnt is extremely high for services' performance, let alone sharing their data with others. In this situation, [ArcGIS](https://www.arcgis.com/index.html), as an important alternative, provide a solution for visualization on map.
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+### Why ArcGIS API 4.x: Comparing between 3.x and 4.x
 
-## Build
+The reason to use 4.x...
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--prod` flag for a production build.
+For details, refer to [link](https://developers.arcgis.com/javascript/latest/guide/choose-version/index.html).
 
-## Running unit tests
+### Release Note:
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+#### Phase 1: 2019/01/07 - 2019/01/12 (done):
+1. Build up the map
+2. Highlight regions with photos to be display
+3. Pin pictures to the location
+4. Switch between 3D map and 2D while zoom in/out
+5. Setup simple structure of the site with Angular 2 and Bootstrap
 
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via [Protractor](http://www.protractortest.org/).
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+### Futrue Plan:
+1. Enable photo cluster (currently not support by ArcGIS 4.10)'
+2. Dynamically load and visualize data (locations and pitucres) from remote
+3. Enable photo upload and location detection
+4. Add address search and routing plan (/navigation)
